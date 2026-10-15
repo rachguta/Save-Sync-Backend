@@ -1,0 +1,55 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': { 'fontSize': '48px' },
+  'sequence': {
+    'useMaxWidth': false,
+    'actorFontSize': 48,
+    'messageFontSize': 48,
+    'noteFontSize': 48,
+    'width': 180,
+    'height': 70,
+    'actorMargin': 30,
+    'messageMargin': 22,
+    'boxMargin': 8,
+    'noteMargin': 8,
+    'mirrorActors': false
+  }
+}}%%
+sequenceDiagram
+    autonumber
+    participant A as Агент-демон
+    participant G as Шлюз
+    participant B as Буфер
+    participant W as Воркер
+    participant S as Хранилище
+
+    A->>G: Тикет (по таймеру)
+    Note over A,G: Заявка поступила, манифест: pending
+    G->>G: ДП: есть свободный воркер?
+
+    alt Happy flow: воркер свободен
+        G->>G: Д2П2: выбор воркера
+        G->>W: Назначить тикет
+        W->>A: Выкачать файл
+        A-->>W: Файл
+        W->>S: Записать снимок
+        S-->>W: Готово
+        W-->>A: ACK
+        Note over A: Манифест: synced
+        W->>G: Воркер свободен (ДВ)
+
+    else Воркеры заняты, буфер не полон
+        G->>B: Д1ОЗ2: в конец очереди
+        W->>G: Воркер свободен (ДВ)
+        G->>B: Д2Б4: выбрать задачу
+        B-->>G: Тикет
+        G->>W: Д2П2: назначить
+        Note over W,S: Далее как в happy flow
+
+    else Отказ: буфер полон
+        G->>B: Д1ОО4: вытеснить хвост
+        B-->>G: Вытесненный тикет
+        Note over G: Отказ засчитан источнику
+        Note over A: ACK нет, манифест: pending
+        A->>G: Новый тикет в след. цикле
+    end
