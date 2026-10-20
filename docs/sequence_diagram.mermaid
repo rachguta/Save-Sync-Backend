@@ -1,11 +1,10 @@
 %%{init: {
-  'theme': 'base',
-  'themeVariables': { 'fontSize': '22px' },
+  'themeVariables': { 'fontSize': '20px' },
   'sequence': {
     'useMaxWidth': false,
-    'actorFontSize': 22,
-    'messageFontSize': 20,
-    'noteFontSize': 20,
+    'actorFontSize': 20,
+    'messageFontSize': 18,
+    'noteFontSize': 18,
     'width': 190,
     'height': 70,
     'actorMargin': 60,
@@ -54,7 +53,7 @@ sequenceDiagram
         B-->>Sch: Тикет наивысшего приоритета
         Note over Sch,W: Прибор определён освободившимся Пk
         Sch->>W: Назначить тикет на Пk
-        Note over W,S: Далее обслуживание, запись и ACK как в happy flow
+        Note over W,S: Далее обслуживание как в happy flow
 
     else Отказ: воркеры заняты, буфер полон
         G->>B: Д1ОО4: вытеснить хвост, пришедший встаёт на его место
