@@ -1,0 +1,229 @@
+classDiagram
+    class SavingType {
+        <<enumeration>>
+        MANUAL(1)
+        AUTO(2)
+        -int priority
+        +getPriority() int
+    }
+
+    class EventType {
+        <<enumeration>>
+        ARRIVAL
+        DEVICE_FREE
+    }
+
+    class SaveData {
+        <<record>>
+        +String sessionId
+        +int version
+    }
+
+    class User {
+        <<record>>
+        +int id
+        +String login
+        +String password
+    }
+
+    class Bid {
+        -int id
+        -int sourceId
+        -int numberInSource
+        -String sessionId
+        -SavingType savingType
+        -double arrivalTime
+        -double bufferEnterTime
+        -double serviceStartTime
+        -double serviceEndTime
+        +getPriority() int
+        +getStayTime() double
+        +getWaitTime() double
+        +getServiceTime() double
+        +getSourceId() int
+        +getNumberInSource() int
+        +setBufferEnterTime(double t) void
+        +setServiceStartTime(double t) void
+        +setServiceEndTime(double t) void
+    }
+
+    class SessionAgent {
+        -int id
+        -SavingType savingType
+        -double minInterval
+        -double maxInterval
+        -Random random
+        -int generatedCount
+        -double nextArrivalTime
+        +generateBid(double t) Bid
+        +getId() int
+        +getGeneratedCount() int
+        +getNextArrivalTime() double
+    }
+
+    class Session {
+        -User user
+        -SessionAgent manualSessionAgent
+        -SessionAgent autoSessionAgent
+        -int saveVersion
+        +generateSaveData() SaveData
+        +agents() List~SessionAgent~
+    }
+
+    class Device {
+        -int id
+        -double meanServiceTime
+        -Random random
+        -Bid currentBid
+        -double busyTotal
+        +isFree() boolean
+        +handleBid(Bid bid, double t) double
+        +finishBid(double t) Bid
+        +getId() int
+        +getCurrentBid() Bid
+        +getBusyTotal() double
+        -getSessionSaveData() void
+        -saveInStorage() void
+    }
+
+    class DeviceManager {
+        -List~Device~ devices
+        -int lastIndex
+        +findFreeDevice() Device
+        +getById(int id) Device
+        +getAll() List~Device~
+        +getLastIndex() int
+    }
+
+    class Buffer {
+        -int capacity
+        -List~Bid~ bidQueue
+        +add(Bid bid, double t) Bid
+        +isEmpty() boolean
+        +getSize() int
+        +getCapacity() int
+        +getQueue() List~Bid~
+    }
+
+    class SynchronizationGateway {
+        -Buffer buffer
+        -Statistics stats
+        +handleArrival(Bid bid, double t) void
+    }
+
+    class Scheduler {
+        -Buffer buffer
+        -Statistics stats
+        +setDeviceToBid(Device device, double t) double
+        -selectBidByPriority() Bid
+    }
+
+    class SimEvent {
+        -double time
+        -EventType eventType
+        -int agentId
+        -int deviceId
+        +arrival(double time, int agentId)$ SimEvent
+        +deviceFree(double time, int deviceId)$ SimEvent
+        +getTime() double
+        +getEventType() EventType
+        +getAgentId() int
+        +getDeviceId() int
+        +compareTo(SimEvent o) int
+    }
+
+    class SourceStats {
+        +int generated
+        +int rejected
+        +int served
+        +pReject() double
+        +avgStay() double
+        +avgWait() double
+        +avgServ() double
+        +varWait() double
+        +varServ() double
+    }
+
+    class Statistics {
+        -Map~Integer,SourceStats~ bySource
+        -Map~Integer,Double~ deviceBusy
+        -double totalTime
+        +recordGenerated(Bid b) void
+        +recordRejected(Bid b) void
+        +recordServed(Bid b) void
+        +setDeviceBusy(int id, double busy) void
+        +setTotalTime(double t) void
+        +utilization(int dev) double
+        +sources() Map~Integer,SourceStats~
+    }
+
+    class SimulationEngine {
+        -PriorityQueue~SimEvent~ calendar
+        -double currentTime
+        -List~SessionAgent~ agents
+        -Map~Integer,SessionAgent~ agentById
+        -DeviceManager deviceManager
+        -Buffer buffer
+        -SynchronizationGateway gateway
+        -Scheduler scheduler
+        -Statistics stats
+        -int generatedTotal
+        -int maxBids
+        -boolean stepByStep
+        +run() Statistics
+        +setStepByStep(boolean v) void
+        -onArrival(SimEvent e) void
+        -onDeviceFree(SimEvent e) void
+        -printState(SimEvent e) void
+    }
+
+    class UserStorage {
+        -Map~String,SaveData~ userData
+        +put(String key, SaveData data) void
+    }
+
+    class CloudStorage {
+        -Map~User,UserStorage~ cloudStorage
+        +save(User user, SaveData data) void
+    }
+
+    class DemoApplication {
+        +main(String[] args)$ void
+    }
+
+    DemoApplication ..> SimulationEngine : создаёт и запускает
+    SimulationEngine o-- SessionAgent : -agents
+    SimulationEngine o-- DeviceManager : -deviceManager
+    SimulationEngine o-- Buffer : -buffer
+    SimulationEngine o-- SynchronizationGateway : -gateway
+    SimulationEngine o-- Scheduler : -scheduler
+    SimulationEngine o-- Statistics : -stats
+    SimulationEngine o-- SimEvent : -calendar
+    SynchronizationGateway --> Buffer : -buffer
+    SynchronizationGateway --> Statistics : -stats
+    Scheduler --> Buffer : -buffer
+    Scheduler --> Statistics : -stats
+    Scheduler ..> Device : аргумент setDeviceToBid
+    DeviceManager o-- Device : -devices
+    Device --> Bid : -currentBid
+    Device ..> CloudStorage : saveInStorage() легенда
+    Session o-- SessionAgent : -manual / -auto
+    Session --> User : -user
+    Session ..> SaveData : generateSaveData()
+    SessionAgent ..> Bid : создаёт
+    SessionAgent --> SavingType : -savingType
+    Bid --> SavingType : -savingType
+    SimEvent --> EventType : -eventType
+    Statistics o-- SourceStats : -bySource
+    CloudStorage o-- UserStorage : -cloudStorage
+    CloudStorage --> User : ключ карты
+    UserStorage o-- SaveData : -userData
+
+    note for SessionAgent "ИБ + ИЗ2:<br/>бесконечный источник,<br/>равномерный закон генерации"
+    note for Device "ПЗ1:<br/>экспоненциальный закон<br/>времени обслуживания"
+    note for DeviceManager "Д2П2: выбор прибора по кольцу<br/>(указатель lastIndex)"
+    note for Buffer "Д1ОЗ2: вставка в конец, сдвиг при освобождении<br/>Д1ОО4: при переполнении выбивается<br/>последняя поступившая"
+    note for SynchronizationGateway "ДП, классический вариант:<br/>работает только с буфером,<br/>ничего не знает о приборах"
+    note for Scheduler "Д2Б4: приоритет по номеру источника,<br/>по одной заявке; среди равных —<br/>последняя поступившая"
+    note for SimulationEngine "Метод особых событий;<br/>триггеры: ARRIVAL, DEVICE_FREE;<br/>ОД1 — пошаговое отображение состояния"
+    note for Statistics "ОР1: сводные таблицы 1–2<br/>(характеристики источников и приборов)"
